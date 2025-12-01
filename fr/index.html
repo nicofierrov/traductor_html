@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualisation de Données - Graphique Flourish</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .description {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .chart-container {
+            margin: 20px 0;
+            min-height: 400px;
+        }
+        .footer {
+            text-align: center;
+            color: #888;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .language-selector {
+            text-align: right;
+            margin-bottom: 20px;
+        }
+        .language-selector a {
+            margin-left: 10px;
+            text-decoration: none;
+            color: #007bff;
+        }
+        .language-selector a:hover {
+            text-decoration: underline;
+        }
+        .language-selector a.active {
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="language-selector">
+            <span>Langue :</span>
+            <a href="../en/index.html">English</a>
+            <a href="../es/index.html">Español</a>
+            <a href="../fr/index.html" class="active">Français</a>
+        </div>
+        
+        <h1>Visualisation de Données Interactive</h1>
+        <p class="subtitle">Explorez nos données à travers des graphiques interactifs</p>
+        
+        <div class="description">
+            <p>Bienvenue sur notre plateforme de visualisation de données. Cette page présente un graphique interactif créé avec Flourish, un puissant outil de visualisation de données qui vous permet d'explorer et de comprendre des données complexes de manière intuitive.</p>
+            <p>Le graphique ci-dessous démontre les tendances et les modèles clés de notre ensemble de données. Vous pouvez interagir avec la visualisation en survolant les éléments pour voir des informations détaillées, ou en cliquant sur différentes catégories pour filtrer les données.</p>
+        </div>
+        
+        <div class="chart-container">
+            <!-- Visualisation Flourish Intégrée -->
+            <div class="flourish-embed flourish-chart" data-src="visualisation/12345678">
+                <script src="https://public.flourish.studio/resources/embed.js"></script>
+            </div>
+        </div>
+        
+        <div class="description">
+            <h2>Points Clés</h2>
+            <ul>
+                <li><strong>Analyse des Tendances :</strong> Les données montrent une tendance à la hausse significative au cours de l'année écoulée.</li>
+                <li><strong>Comparaison Régionale :</strong> L'Amérique du Nord est en tête des métriques de performance globale.</li>
+                <li><strong>Taux de Croissance :</strong> La croissance d'une année sur l'autre a dépassé les attentes de 15%.</li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>&copy; 2024 Projet de Visualisation de Données. Tous droits réservés.</p>
+            <p>Source des données : Ensemble de données d'exemple | Créé avec Flourish</p>
+        </div>
+    </div>
+    
+    <script src="main.js"></script>
+</body>
+</html>
