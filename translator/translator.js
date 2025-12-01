@@ -3,6 +3,11 @@
  * Supports: English (EN), Spanish (ES), French (FR)
  */
 
+// Constants for file type detection
+const FILE_EXTENSION_PATTERN = /\.(html|htm|js)$/i;
+const JS_CONTENT_INDICATORS = ['function ', 'const ', 'let ', 'var ', '=>', 'module.exports'];
+const HTML_CONTENT_INDICATORS = ['<!DOCTYPE', '<html', '<head', '<body', '<div', '<script'];
+
 // Translation dictionary - maps phrases between languages
 const translationDictionary = {
     // Common HTML/Web terms
@@ -187,21 +192,15 @@ const translationDictionary = {
     }
 };
 
-// Simple word-by-word dictionary for fallback
+// Note: This word dictionary is kept for reference but not actively used in translations.
+// The phrase-based translationDictionary above provides more accurate context-aware translations.
+// Word-by-word translation can lead to grammatical errors due to gender/number agreement issues.
 const wordDictionary = {
-    // Common words EN -> ES, FR
-    "the": { es: "el/la", fr: "le/la" },
+    // Common words - provided as reference only
     "and": { es: "y", fr: "et" },
     "or": { es: "o", fr: "ou" },
-    "is": { es: "es", fr: "est" },
-    "are": { es: "son", fr: "sont" },
-    "to": { es: "a", fr: "à" },
     "for": { es: "para", fr: "pour" },
     "with": { es: "con", fr: "avec" },
-    "in": { es: "en", fr: "dans" },
-    "on": { es: "en", fr: "sur" },
-    "by": { es: "por", fr: "par" },
-    "from": { es: "de", fr: "de" },
     "data": { es: "datos", fr: "données" },
     "chart": { es: "gráfico", fr: "graphique" },
     "visualization": { es: "visualización", fr: "visualisation" },
@@ -212,10 +211,7 @@ const wordDictionary = {
     "download": { es: "descargar", fr: "télécharger" },
     "upload": { es: "subir", fr: "téléverser" },
     "file": { es: "archivo", fr: "fichier" },
-    "language": { es: "idioma", fr: "langue" },
-    "English": { es: "Inglés", fr: "Anglais" },
-    "Spanish": { es: "Español", fr: "Espagnol" },
-    "French": { es: "Francés", fr: "Français" }
+    "language": { es: "idioma", fr: "langue" }
 };
 
 /**
@@ -370,9 +366,8 @@ function downloadOutput() {
         return;
     }
     
-    // Determine file extension based on content
-    const isJS = output.includes('function') && output.includes('const ');
-    const extension = isJS ? 'js' : 'html';
+    // Determine file extension based on content using defined indicators
+    const extension = detectFileType(output);
     const filename = `translated_${targetLang}.${extension}`;
     
     const blob = new Blob([output], { type: 'text/plain;charset=utf-8' });
@@ -386,6 +381,36 @@ function downloadOutput() {
     URL.revokeObjectURL(url);
     
     showStatus(`Downloaded: ${filename}`, 'success');
+}
+
+/**
+ * Detect file type based on content patterns
+ * @param {string} content - The file content to analyze
+ * @returns {string} - The detected file extension ('js' or 'html')
+ */
+function detectFileType(content) {
+    // Check for HTML indicators first (more specific patterns)
+    const htmlIndicatorCount = HTML_CONTENT_INDICATORS.filter(indicator => 
+        content.includes(indicator)
+    ).length;
+    
+    // Check for JS-specific patterns
+    const jsIndicatorCount = JS_CONTENT_INDICATORS.filter(indicator => 
+        content.includes(indicator)
+    ).length;
+    
+    // If content has HTML document structure, it's HTML
+    if (htmlIndicatorCount >= 2) {
+        return 'html';
+    }
+    
+    // If content has multiple JS indicators and no HTML structure, it's JS
+    if (jsIndicatorCount >= 2 && htmlIndicatorCount === 0) {
+        return 'js';
+    }
+    
+    // Default to HTML for mixed or unknown content
+    return 'html';
 }
 
 /**
@@ -469,7 +494,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             const file = files[0];
-            if (file.name.match(/\.(html|htm|js)$/i)) {
+            if (FILE_EXTENSION_PATTERN.test(file.name)) {
                 document.getElementById('fileInput').files = files;
                 loadFile({ target: { files: files } });
             } else {
@@ -485,6 +510,7 @@ if (typeof module !== 'undefined' && module.exports) {
         translate,
         translationDictionary,
         escapeRegExp,
-        getLangName
+        getLangName,
+        detectFileType
     };
 }
