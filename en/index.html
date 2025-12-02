@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Visualization - Flourish Chart</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .description {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .chart-container {
+            margin: 20px 0;
+            min-height: 400px;
+        }
+        .footer {
+            text-align: center;
+            color: #888;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .language-selector {
+            text-align: right;
+            margin-bottom: 20px;
+        }
+        .language-selector a {
+            margin-left: 10px;
+            text-decoration: none;
+            color: #007bff;
+        }
+        .language-selector a:hover {
+            text-decoration: underline;
+        }
+        .language-selector a.active {
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="language-selector">
+            <span>Language:</span>
+            <a href="../en/index.html" class="active">English</a>
+            <a href="../es/index.html">Español</a>
+            <a href="../fr/index.html">Français</a>
+        </div>
+        
+        <h1>Interactive Data Visualization</h1>
+        <p class="subtitle">Explore our data through interactive charts</p>
+        
+        <div class="description">
+            <p>Welcome to our data visualization platform. This page showcases an interactive chart created with Flourish, a powerful data visualization tool that allows you to explore and understand complex data in an intuitive way.</p>
+            <p>The chart below demonstrates key trends and patterns in our dataset. You can interact with the visualization by hovering over elements to see detailed information, or by clicking on different categories to filter the data.</p>
+        </div>
+        
+        <div class="chart-container">
+            <!-- Flourish Embedded Visualization -->
+            <div class="flourish-embed flourish-chart" data-src="visualisation/12345678">
+                <script src="https://public.flourish.studio/resources/embed.js"></script>
+            </div>
+        </div>
+        
+        <div class="description">
+            <h2>Key Insights</h2>
+            <ul>
+                <li><strong>Trend Analysis:</strong> The data shows a significant upward trend over the past year.</li>
+                <li><strong>Regional Comparison:</strong> North America leads in overall performance metrics.</li>
+                <li><strong>Growth Rate:</strong> Year-over-year growth has exceeded expectations by 15%.</li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>&copy; 2024 Data Visualization Project. All rights reserved.</p>
+            <p>Data source: Sample Dataset | Created with Flourish</p>
+        </div>
+    </div>
+    
+    <script src="main.js"></script>
+</body>
+</html>

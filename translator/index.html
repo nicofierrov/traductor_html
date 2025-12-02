@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Translator - EN/ES/FR</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        .main-content {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .control-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9em;
+        }
+        select, button {
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+        select {
+            border: 2px solid #ddd;
+            background: white;
+            min-width: 150px;
+        }
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .btn {
+            border: none;
+            color: white;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+        .editor-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        @media (max-width: 900px) {
+            .editor-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        .editor-panel {
+            display: flex;
+            flex-direction: column;
+        }
+        .editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border-radius: 8px 8px 0 0;
+            border: 1px solid #dee2e6;
+            border-bottom: none;
+        }
+        .editor-header h3 {
+            margin: 0;
+            color: #333;
+            font-size: 1em;
+        }
+        .editor-header .lang-badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        textarea {
+            width: 100%;
+            height: 400px;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 0 0 8px 8px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            resize: vertical;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .file-upload {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .file-upload:hover {
+            background: #f8f9fa;
+        }
+        .file-upload input {
+            display: none;
+        }
+        .file-upload .icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        .file-upload p {
+            margin: 0;
+            color: #666;
+        }
+        .status-bar {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .status-bar.success {
+            display: block;
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status-bar.error {
+            display: block;
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status-bar.info {
+            display: block;
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .arrow-icon {
+            font-size: 2em;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dictionary-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .dictionary-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .dictionary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 10px;
+        }
+        .dict-entry {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 6px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            font-size: 0.9em;
+        }
+        .dict-entry span {
+            padding: 5px;
+        }
+        .dict-entry .lang-label {
+            font-weight: 600;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌐 HTML Translator</h1>
+            <p>Translate HTML files between English, Spanish, and French</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="file-upload" onclick="document.getElementById('fileInput').click()">
+                <input type="file" id="fileInput" accept=".html,.htm,.js" onchange="loadFile(event)">
+                <div class="icon">📁</div>
+                <p><strong>Click to upload</strong> or drag and drop</p>
+                <p style="font-size: 0.9em; margin-top: 5px;">HTML, HTM, or JS files</p>
+            </div>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <label for="sourceLang">Source Language</label>
+                    <select id="sourceLang">
+                        <option value="en">🇬🇧 English (EN)</option>
+                        <option value="es">🇪🇸 Español (ES)</option>
+                        <option value="fr">🇫🇷 Français (FR)</option>
+                    </select>
+                </div>
+                
+                <div class="arrow-icon">→</div>
+                
+                <div class="control-group">
+                    <label for="targetLang">Target Language</label>
+                    <select id="targetLang">
+                        <option value="es">🇪🇸 Español (ES)</option>
+                        <option value="fr">🇫🇷 Français (FR)</option>
+                        <option value="en">🇬🇧 English (EN)</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-primary" onclick="translateContent()">
+                    🔄 Translate
+                </button>
+                
+                <button class="btn btn-success" onclick="downloadOutput()">
+                    📥 Download
+                </button>
+                
+                <button class="btn btn-secondary" onclick="clearAll()">
+                    🗑️ Clear
+                </button>
+            </div>
+            
+            <div class="editor-container">
+                <div class="editor-panel">
+                    <div class="editor-header">
+                        <h3>📝 Input (Source)</h3>
+                        <span class="lang-badge" id="inputLangBadge">EN</span>
+                    </div>
+                    <textarea id="inputEditor" placeholder="Paste your HTML content here or upload a file..."></textarea>
+                </div>
+                
+                <div class="editor-panel">
+                    <div class="editor-header">
+                        <h3>✨ Output (Translated)</h3>
+                        <span class="lang-badge" id="outputLangBadge">ES</span>
+                    </div>
+                    <textarea id="outputEditor" placeholder="Translated content will appear here..." readonly></textarea>
+                </div>
+            </div>
+            
+            <div id="statusBar" class="status-bar"></div>
+            
+            <div class="dictionary-section">
+                <h3>📚 Translation Dictionary Preview</h3>
+                <p style="color: #666; margin-bottom: 15px;">Common phrases used in translations:</p>
+                <div class="dictionary-grid" id="dictionaryPreview">
+                    <!-- Dictionary entries will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="translator.js"></script>
+</body>
+</html>
