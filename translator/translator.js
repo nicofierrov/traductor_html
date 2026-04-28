@@ -8,6 +8,12 @@ const FILE_EXTENSION_PATTERN = /\.(html|htm|js)$/i;
 const JS_CONTENT_INDICATORS = ['function ', 'const ', 'let ', 'var ', '=>', 'module.exports'];
 const HTML_CONTENT_INDICATORS = ['<!DOCTYPE', '<html', '<head', '<body', '<div', '<script'];
 
+// Tags whose text content should not be translated
+const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE']);
+
+// Element attributes that contain user-visible text
+const VISIBLE_ATTRS = ['alt', 'title', 'placeholder', 'aria-label'];
+
 // Translation dictionary - maps phrases between languages
 const translationDictionary = {
     // Common HTML/Web terms
@@ -215,55 +221,245 @@ const wordDictionary = {
 };
 
 /**
- * Main translation function
- * @param {string} content - The content to translate
+ * Extract translatable text segments from a parsed HTML document.
+ * Skips script/style/noscript/template elements and collects text nodes
+ * plus key user-visible attributes.
+ * @param {Document} doc - Parsed HTML document
+ * @returns {Array<{type: string, node: Node, key?: string, originalValue: string}>}
+ */
+function extractTextNodes(doc) {
+    const segments = [];
+
+    function walk(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            if (node.nodeValue.trim()) {
+                segments.push({ type: 'text', node, originalValue: node.nodeValue });
+            }
+            return;
+        }
+
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            if (SKIP_TAGS.has(node.tagName)) return;
+
+            // Collect user-visible attributes
+            for (const attr of VISIBLE_ATTRS) {
+                const val = node.getAttribute(attr);
+                if (val && val.trim()) {
+                    segments.push({ type: 'attr', node, key: attr, originalValue: val });
+                }
+            }
+
+            // Collect meta description / Open Graph content
+            if (node.tagName === 'META') {
+                const name = (node.getAttribute('name') || node.getAttribute('property') || '').toLowerCase();
+                if (name === 'description' || name.startsWith('og:')) {
+                    const val = node.getAttribute('content');
+                    if (val && val.trim()) {
+                        segments.push({ type: 'attr', node, key: 'content', originalValue: val });
+                    }
+                }
+            }
+        }
+
+        for (const child of node.childNodes) {
+            walk(child);
+        }
+    }
+
+    walk(doc.documentElement || doc);
+    return segments;
+}
+
+/**
+ * Translate an array of strings via the MyMemory API.
+ * Strings are batched (joined with newlines) to minimise API round-trips.
+ * Falls back to the original text for any batch that fails.
+ * @param {string[]} texts - Strings to translate
+ * @param {string} sourceLang - Source language code
+ * @param {string} targetLang - Target language code
+ * @returns {Promise<string[]>} - Translated strings (parallel array)
+ */
+async function translateViaAPI(texts, sourceLang, targetLang) {
+    const BATCH_MAX_CHARS = 480;
+    const SEP = '\n';
+    const results = new Array(texts.length).fill(null);
+
+    // Build batches: keep both the original text and a whitespace-normalised
+    // version (used for the API call) so that fallbacks restore the original.
+    const batches = [];
+    let current = { origTexts: [], normTexts: [], startIdx: 0, len: 0 };
+
+    for (let i = 0; i < texts.length; i++) {
+        const normText = texts[i].replace(/\s+/g, ' ').trim();
+        const addLen = current.normTexts.length === 0 ? normText.length : SEP.length + normText.length;
+
+        if (current.normTexts.length > 0 && current.len + addLen > BATCH_MAX_CHARS) {
+            batches.push({ origTexts: current.origTexts.slice(), normTexts: current.normTexts.slice(), startIdx: current.startIdx });
+            current = { origTexts: [texts[i]], normTexts: [normText], startIdx: i, len: normText.length };
+        } else {
+            current.origTexts.push(texts[i]);
+            current.normTexts.push(normText);
+            current.len += addLen;
+        }
+    }
+    if (current.normTexts.length > 0) {
+        batches.push({ origTexts: current.origTexts, normTexts: current.normTexts, startIdx: current.startIdx });
+    }
+
+    const batchErrors = [];
+
+    await Promise.all(batches.map(async ({ origTexts, normTexts, startIdx }) => {
+        try {
+            const query = normTexts.join(SEP);
+            const safeSrc = encodeURIComponent(sourceLang);
+            const safeTgt = encodeURIComponent(targetLang);
+            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(query)}&langpair=${safeSrc}|${safeTgt}`;
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error(`API responded with status ${resp.status}`);
+            const data = await resp.json();
+            if (data.responseStatus !== 200) throw new Error(data.responseMessage || 'Translation API error');
+            const parts = data.responseData.translatedText.split(SEP);
+            for (let i = 0; i < normTexts.length; i++) {
+                results[startIdx + i] = (parts[i] !== undefined && parts[i] !== '') ? parts[i] : origTexts[i];
+            }
+        } catch (err) {
+            batchErrors.push(err);
+            // Fallback: restore the original (un-normalised) texts for this batch
+            for (let i = 0; i < origTexts.length; i++) {
+                results[startIdx + i] = origTexts[i];
+            }
+        }
+    }));
+
+    // Only surface an error when every single batch failed (total service outage)
+    if (batchErrors.length > 0 && batchErrors.length === batches.length) {
+        throw new Error('Translation service unavailable. Please try again later or check your connection.');
+    }
+
+    return results;
+}
+
+/**
+ * Serialize a parsed HTML document back to a string, preserving the DOCTYPE.
+ * @param {Document} doc - Parsed HTML document
+ * @returns {string} - HTML string
+ */
+function reconstructHTML(doc) {
+    const dt = doc.doctype;
+    const doctypeStr = dt ? `<!DOCTYPE ${dt.name}>\n` : '';
+    return doctypeStr + doc.documentElement.outerHTML;
+}
+
+/**
+ * Apply dictionary-based phrase replacement.
+ * Used as a fallback for non-HTML (plain text / JS) content.
+ * @param {string} content - Content to translate
  * @param {string} sourceLang - Source language code (en, es, fr)
  * @param {string} targetLang - Target language code (en, es, fr)
  * @returns {string} - Translated content
  */
-function translate(content, sourceLang, targetLang) {
-    if (sourceLang === targetLang) {
-        return content;
-    }
-    
-    let translatedContent = content;
-    
-    // Sort dictionary keys by length (longest first) to match longer phrases first
+function translateWithDictionary(content, sourceLang, targetLang) {
+    let result = content;
+
+    // Sort keys by length (longest first) to match longer phrases first
     const sortedKeys = Object.keys(translationDictionary).sort((a, b) => b.length - a.length);
-    
+
     for (const phrase of sortedKeys) {
         const translations = translationDictionary[phrase];
         const sourcePhrase = translations[sourceLang];
         const targetPhrase = translations[targetLang];
-        
+
         if (sourcePhrase && targetPhrase) {
-            // Create a case-insensitive regex but preserve original case pattern
             const regex = new RegExp(escapeRegExp(sourcePhrase), 'gi');
-            translatedContent = translatedContent.replace(regex, (match) => {
-                // Try to preserve the case of the original
-                if (match === match.toUpperCase()) {
-                    return targetPhrase.toUpperCase();
-                } else if (match[0] === match[0].toUpperCase()) {
-                    return targetPhrase.charAt(0).toUpperCase() + targetPhrase.slice(1);
-                }
+            result = result.replace(regex, (match) => {
+                if (match === match.toUpperCase()) return targetPhrase.toUpperCase();
+                if (match[0] === match[0].toUpperCase()) return targetPhrase.charAt(0).toUpperCase() + targetPhrase.slice(1);
                 return targetPhrase;
             });
         }
     }
-    
+
     // Update language attributes in HTML
-    translatedContent = translatedContent.replace(
-        /lang=["']([a-z]{2})["']/gi,
-        `lang="${targetLang}"`
-    );
-    
+    result = result.replace(/lang=["']([a-z]{2})["']/gi, `lang="${targetLang}"`);
+
     // Update config.language in JS files
-    translatedContent = translatedContent.replace(
-        /language:\s*['"]([a-z]{2})['"]/gi,
-        `language: '${targetLang}'`
-    );
-    
-    return translatedContent;
+    result = result.replace(/language:\s*['"]([a-z]{2})['"]/gi, `language: '${targetLang}'`);
+
+    return result;
+}
+
+/**
+ * Main translation function (async).
+ * For HTML content: parses the DOM, translates visible text nodes and attributes
+ * via the MyMemory API, then serialises the modified document back to a string.
+ * For non-HTML content: falls back to static dictionary replacement.
+ * @param {string} content - The content to translate
+ * @param {string} sourceLang - Source language code (en, es, fr)
+ * @param {string} targetLang - Target language code (en, es, fr)
+ * @param {function} [onProgress] - Called with the segment count before API calls start
+ * @returns {Promise<string>} - Translated content
+ */
+async function translate(content, sourceLang, targetLang, onProgress) {
+    if (sourceLang === targetLang) {
+        return content;
+    }
+
+    // Fast-path: exact match against a known dictionary phrase
+    const trimmed = content.trim();
+    for (const phrase of Object.keys(translationDictionary)) {
+        const translations = translationDictionary[phrase];
+        if (translations[sourceLang] === trimmed && translations[targetLang]) {
+            return translations[targetLang];
+        }
+    }
+
+    const isHTML = HTML_CONTENT_INDICATORS.some(ind => content.includes(ind));
+
+    if (!isHTML) {
+        // Non-HTML: use the dictionary replacement
+        return translateWithDictionary(content, sourceLang, targetLang);
+    }
+
+    // Parse the HTML into a live DOM.
+    // The translated result is written to a textarea (.value), not injected via
+    // innerHTML, so there is no XSS risk here.
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(content, 'text/html');
+
+    const segments = extractTextNodes(doc);
+
+    if (segments.length === 0) {
+        // Nothing to translate – just update the lang attribute
+        if (doc.documentElement) doc.documentElement.setAttribute('lang', targetLang);
+        return reconstructHTML(doc);
+    }
+
+    if (onProgress) onProgress(segments.length);
+
+    const texts = segments.map(s => s.originalValue);
+    const translated = await translateViaAPI(texts, sourceLang, targetLang);
+
+    // Apply translations back to the DOM
+    for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i];
+        const newText = translated[i] || seg.originalValue;
+        if (seg.type === 'text') {
+            // Preserve surrounding whitespace by reconstructing the node value
+            // explicitly: extract leading/trailing whitespace and sandwich the
+            // translation between them.
+            const trimmed = seg.originalValue.trim();
+            const leadingLen = seg.originalValue.indexOf(trimmed);
+            const trailingLen = seg.originalValue.length - leadingLen - trimmed.length;
+            const leading = seg.originalValue.slice(0, leadingLen);
+            const trailing = trailingLen > 0 ? seg.originalValue.slice(-trailingLen) : '';
+            seg.node.nodeValue = leading + newText + trailing;
+        } else {
+            seg.node.setAttribute(seg.key, newText);
+        }
+    }
+
+    if (doc.documentElement) doc.documentElement.setAttribute('lang', targetLang);
+    return reconstructHTML(doc);
 }
 
 /**
@@ -328,29 +524,45 @@ function getLangName(code) {
 }
 
 /**
- * Translate the content in the input editor
+ * Translate the content in the input editor (async – manages button state).
  */
-function translateContent() {
+async function translateContent() {
     const input = document.getElementById('inputEditor').value;
     const sourceLang = document.getElementById('sourceLang').value;
     const targetLang = document.getElementById('targetLang').value;
-    
+
     if (!input.trim()) {
         showStatus('Please enter content to translate', 'error');
         return;
     }
-    
+
     if (sourceLang === targetLang) {
         showStatus('Source and target languages are the same', 'error');
         return;
     }
-    
+
+    const btn = document.getElementById('translateBtn');
+    const originalButtonHTML = btn ? btn.innerHTML : null;
+    if (btn) {
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+        btn.innerHTML = '⏳ Translating…';
+    }
+
     try {
-        const translated = translate(input, sourceLang, targetLang);
+        const translated = await translate(input, sourceLang, targetLang, (count) => {
+            showStatus(`Translating ${count} text segment${count !== 1 ? 's' : ''}…`, 'info');
+        });
         document.getElementById('outputEditor').value = translated;
         showStatus(`Successfully translated from ${getLangName(sourceLang)} to ${getLangName(targetLang)}!`, 'success');
     } catch (error) {
         showStatus('Translation error: ' + error.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.removeAttribute('aria-busy');
+            btn.innerHTML = originalButtonHTML;
+        }
     }
 }
 
@@ -511,6 +723,10 @@ if (typeof module !== 'undefined' && module.exports) {
         translationDictionary,
         escapeRegExp,
         getLangName,
-        detectFileType
+        detectFileType,
+        extractTextNodes,
+        translateViaAPI,
+        reconstructHTML,
+        translateWithDictionary
     };
 }
